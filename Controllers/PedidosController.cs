@@ -24,7 +24,7 @@ public class PedidosController : ControllerBase
         var produto = context.Produtos.AnyAsync(p => p.Id == pedido.ProdutoId);
         if (produto == null) return BadRequest("Este produto não existe.");
         var quantidadeTotal = context.Pedidos
-        .Where(p => p.ProdutoId.Equals(pedido.ProdutoId) && p.UnidadeId == pedido.UnidadeId)
+        .Where(p => p.UnidadeId == pedido.UnidadeId)
         .Sum(p => p.Quantidade);
         var unidade = context.Franquias.AnyAsync(f => f.Id == pedido.UnidadeId);
         context.Pedidos.Add(pedido);
