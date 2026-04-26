@@ -15,27 +15,34 @@ public class LotesController : ControllerBase
     }
     [HttpGet]
     public async Task<ActionResult> Get(){
-        var lotes = context.Lotes.ToList();
+        var lotes = context.LotesProducao.ToList();
         return Ok(lotes);
     }
 
     [HttpPost]
     public async Task<ActionResult> Post(LoteProducao lote){
-        if (context.Produtos.AnyAsync(p => p.Id == lote.ProdutoId) == null) return BadRequest("Este produto não existe.");
-        else if (lote.DataFabricacao > DateTime.Now) return Conflict("Lote inválido: Data de fabricação não pode ser maior que a data atual.");
-        context.Lotes.Add(lote);
+        var produtoExiste = await context.Produtos.AnyAsync(p => p.Id == lote.ProdutoId);
+        if (!produtoExiste)
+            return BadRequest("Este produto não existe.");
+        if (lote.DataFabricacao > DateTime.Now)
+            return Conflict("Lote inválido: Data de fabricação não pode ser maior que a data atual.");
+        context.LotesProducao.Add(lote);
         await context.SaveChangesAsync();
         return CreatedAtAction(nameof(Get), lote);
     }
 
-    [HttpPatch]
-    public async Task<ActionResult> Patch(LoteProducao lote)
+    [HttpPatch("{id}")]
+    public async Task<ActionResult> Patch(int id, [FromBody] string novoStatus)
     {
-        var loteCache = context.Lotes.FirstOrDefault(l => l.Id == lote.Id);
-        if (loteCache == null) return BadRequest("Este lote não existe.");
-        else if (loteCache.Status.ToLower().Equals("descartado")) return BadRequest("Um lote descartado não pode ser alterado.");
-        context.Lotes.Update(lote);
+        var lote = await context.LotesProducao.FirstOrDefaultAsync(l => l.Id == id);
+        if (lote == null) return BadRequest("Este lote não existe.");
+        if (lote.Status.ToLower() == "descartado")
+        {
+            // Não pode voltar para nenhum status
+            return BadRequest("Um lote descartado não pode ter seu status alterado.");
+        }
+        lote.Status = novoStatus;
         await context.SaveChangesAsync();
-        return Ok();
+        return Ok(lote);
     }
 }

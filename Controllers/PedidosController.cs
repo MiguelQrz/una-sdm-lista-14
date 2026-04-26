@@ -21,14 +21,23 @@ public class PedidosController : ControllerBase
 
     [HttpPost]
     public async Task<ActionResult> Post(Pedido pedido){
-        var produto = context.Produtos.AnyAsync(p => p.Id == pedido.ProdutoId);
+        var produto = await context.Produtos.FirstOrDefaultAsync(p => p.Id == pedido.ProdutoId);
         if (produto == null) return BadRequest("Este produto não existe.");
-        var quantidadeTotal = context.Pedidos
-        .Where(p => p.UnidadeId == pedido.UnidadeId)
-        .Sum(p => p.Quantidade);
-        var unidade = context.Franquias.AnyAsync(f => f.Id == pedido.UnidadeId);
-        context.Pedidos.Add(pedido);
+        var unidade = await context.Franquias.FirstOrDefaultAsync(f => f.Id == pedido.UnidadeId);
+        if (unidade == null) return BadRequest("Esta unidade não existe.");
+        var quantidadeTotal = await context.Pedidos
+            .Where(p => p.UnidadeId == pedido.UnidadeId)
+            .SumAsync(p => p.Quantidade);
+        if (quantidadeTotal + pedido.Quantidade > unidade.CapacidadeEstoque)
+            return BadRequest("Capacidade logística da loja excedida. Não é possível receber mais produtos.");
 
+        pedido.ValorTotal = produto.PrecoBase * pedido.Quantidade;
+        if (produto.Tipo.ToLower() == "sazonal")
+        {
+            pedido.ValorTotal += 15.00m;
+            Console.WriteLine("Produto sazonal detectado: Adicionando embalagem de presente premium!");
+        }
+        context.Pedidos.Add(pedido);
         await context.SaveChangesAsync();
         return CreatedAtAction(nameof(Get), pedido);
     }
